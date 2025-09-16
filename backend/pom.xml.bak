@@ -1,0 +1,111 @@
+# ---- 1. Përditëso pom.xml që të përdorë Java 17 + Spring Boot parent ----
+cat > backend/pom.xml <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.3.2</version>
+    <relativePath/> <!-- lookup parent from repository -->
+  </parent>
+
+  <groupId>com.neoflow</groupId>
+  <artifactId>minierp</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>NeoFlow MiniERP (Java Backend)</name>
+  <description>Mini ERP backend</description>
+
+  <properties>
+    <java.version>17</java.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+        <configuration>
+          <release>17</release>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+EOF
+
+# ---- 2. Riparo InventoryController: hiq switch-expression (Java 14+) ----
+cat > backend/src/main/java/com/neoflow/minierp/controller/InventoryController.java <<'EOF'
+package com.neoflow.minierp.controller;
+import com.neoflow.minierp.entity.Product;
+import com.neoflow.minierp.entity.InventoryMovement;
+import com.neoflow.minierp.repo.ProductRepo;
+import com.neoflow.minierp.repo.InventoryRepo;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/inventory")
+public class InventoryController {
+  private final ProductRepo pRepo; private final InventoryRepo iRepo;
+  public InventoryController(ProductRepo pRepo, InventoryRepo iRepo){ this.pRepo=pRepo; this.iRepo=iRepo; }
+
+  @PostMapping("/move")
+  public Product move(@RequestParam Long productId,
+                      @RequestParam String type, // IN, OUT, ADJUST
+                      @RequestParam int qty,
+                      @RequestParam(required=false, defaultValue="") String ref){
+    Product p = pRepo.findById(productId).orElseThrow();
+
+    int delta;
+    if ("IN".equals(type)) {
+      delta = qty;
+    } else if ("OUT".equals(type)) {
+      delta = -qty;
+    } else {
+      // ADJUST (pozitiv ose negativ sipas qty të dhënë)
+      delta = qty;
+    }
+
+    p.setStockQty(p.getStockQty() + delta);
+
+    InventoryMovement m = new InventoryMovement();
+    m.setProduct(p); m.setMovementType(type); m.setQuantity(qty); m.setReference(ref);
+    iRepo.save(m);
+    return pRepo.save(p);
+  }
+}
+EOF

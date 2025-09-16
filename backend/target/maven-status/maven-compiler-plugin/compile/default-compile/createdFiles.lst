@@ -1,0 +1,7 @@
+com/neoflow/minierp/entity/Customer.class
+com/neoflow/minierp/entity/ARInvoiceLine.class
+com/neoflow/minierp/entity/OrderLine.class
+com/neoflow/minierp/entity/ARInvoice.class
+com/neoflow/minierp/entity/Product.class
+com/neoflow/minierp/entity/OrderStatus.class
+com/neoflow/minierp/entity/Order.class
